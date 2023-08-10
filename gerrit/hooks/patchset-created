@@ -30,8 +30,6 @@ if (IS_GERRIT && !isset($opts['recheck'])) {
 $paramsOk = TRUE;
 if (empty($config['url'])) $paramsOk = missingParam('gitlab-config', 'url');
 if (empty($config['gerritUser'])) $paramsOk = missingParam('gitlab-config', 'gerritUser');
-if (empty($gerritConfig['gerrit']['canonicalWebUrl'])) $paramsOk = missingParam('gerrit-config', 'canonicalWebUrl');
-if (empty($gerritConfig['sshd']['listenAddress'])) $paramsOk = missingParam('gerrit-config', 'listenAddress');
 if (empty($opts['project'])) $paramsOk = missingParam('param', 'project');
 if (empty($opts['branch'])) $paramsOk = missingParam('param', 'branch');
 if (empty($opts['change-url'])) $paramsOk = missingParam('param', 'change-url');
@@ -41,52 +39,22 @@ if (empty($opts['patchset'])) $paramsOk = missingParam('param', 'patchset');
 if ($paramsOk) {
 	// Get project ID from project name 
 	$projectId = getProjectId($opts['project']);
+	$headers = ["Content-Type: application/x-www-form-urlencoded", "Private-Token: " . $config['token']];
+	$merge_request_api = $config['url'] . "/api/v4/projects/{$projectId}/merge_requests";
 
-	// Get CI token from project ID
-	$tokenCI = '';
 	if ($projectId) {
-		print "Project ID: $projectId, branch: {$opts['branch']}\n";
-		$json = getJson($config['url'] . "/api/v4/projects/{$projectId}/triggers");
-		if (!empty($json)) $tokenCI = $json[0]->token;
-
-		// Try to create a CI token (if missing)
-		if (!$tokenCI) {
-			print "Token CI is missing, trying to create a new one...\n";
-
-			$headers = ["Content-Type: application/x-www-form-urlencoded", "Private-Token: " . $config['token']];
-			$postdata = http_build_query(['description' => 'Gerrit']);
-			list($headers, $body, $code) = doRequest($config['url'] . "/api/v4/projects/{$projectId}/triggers", $postdata, $headers);
-			print "Got response: $code\n";
-
-			$json = getJson($config['url'] . "/api/v4/projects/{$projectId}/triggers");
-			if (!empty($json)) $tokenCI = $json[0]->token;
-		}
+		$source_branch = getBranchName($opts['change-url'], $opts['patchset']);
+		print "Project ID: $projectId, branch: {$opts['branch']}, ref: {$source_branch}\n";
+		$postdata = http_build_query([
+			'id' => $projectId,
+			'source_branch' => $source_branch,
+			'target_branch' => $opts['branch'],
+			'title' => $opts['change-url']
+		]);
+		list($headers, $body, $code) = doRequest($merge_request_api, $postdata, $headers);
+		print "Got response: $code\n";
 	}
 	else print "Project {$opts['project']} NOT FOUND!\n";
-
-	// Use CI token to trigger the build
-	if ($tokenCI) {
-		$ref = "refs/heads/" . getBranchName($opts['change-url'], $opts['patchset']);
-		$gerritAddress = parse_url($gerritConfig['gerrit']['canonicalWebUrl'], PHP_URL_HOST);
-		$gerritSshPort = parse_url($gerritConfig['sshd']['listenAddress'], PHP_URL_PORT);
-		print "Triggering build with commit: {$opts['commit']}, ref: $ref\n";
-		$json = getJson(
-			$config['url'] . "/api/v4/projects/{$projectId}/trigger/pipeline",
-			http_build_query(
-				[
-					'ref' => $ref,
-					'variables[GERRIT_COMMIT]' => $opts['commit'],
-					'variables[GERRIT_USER]' => $config['gerritUser'],
-					'variables[GERRIT_ADDRESS]' => $gerritAddress,
-					'variables[GERRIT_SSH_PORT]' => $gerritSshPort,
-					'token' => $tokenCI
-				]
-			),
-			'application/x-www-form-urlencoded'
-		);
-		var_dump($json);
-	}
-	else print "ERROR: Token CI NOT FOUND in project {$opts['project']} ({$projectId})\n";
 }
 
 print "### HOOK PATCHSET-CREATED END\n\n";
