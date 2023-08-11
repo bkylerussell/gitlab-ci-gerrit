@@ -27,7 +27,7 @@ function getProjectId($projectName) {
 	global $config;
 
 	$projectId = 0;
-        $json = getJson($config['url'] . "/api/v4/projects?simple=true&search={$projectName}");
+        $json = getJson($config['url'] . "/api/v4/projects?simple=true&membership=true&search={$projectName}");
         foreach ($json as $project) {
                 if ($project->name == $projectName) { $projectId = $project->id; break; }
         } 
