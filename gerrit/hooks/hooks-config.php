@@ -25,7 +25,6 @@ if (IS_GERRIT) {
 // Read configuration
 global $config;
 $config = parse_ini_file(realpath(dirname(__FILE__) . '/../etc/gitlab.config'), TRUE)['gitlab'];
-$gerritConfig = parse_ini_file(realpath(dirname(__FILE__) . '/../etc/gerrit.config'), TRUE);
 
 // Parse command-line options
 $opts = [];
