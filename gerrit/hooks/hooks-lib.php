@@ -106,6 +106,7 @@ function doRequest($url, $postdata=NULL, $headers=[], $method=NULL) {
 	}
 
 	// Misc options
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
 	//curl_setopt($ch, CURLOPT_VERBOSE, TRUE);
 	curl_setopt($ch, CURLOPT_HEADER, TRUE);
